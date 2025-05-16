@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Head from 'next/head'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { FaDollarSign } from "react-icons/fa6";
 import { FaCartShopping } from "react-icons/fa6";
@@ -31,29 +31,53 @@ export default function Home() {
   const [ itemQuantity, setItemQuantity ] = useState(1) 
   const [ totalSpent, setTotalSpent ] = useState(0)
   const [ percentage, setPercentage ] = useState(0)
+  const [ isDialogOpen, setIsDialogOpen ] = useState(false)
+  const [ selectedItem, setSelectedItem ] = useState(null)
 
   function addNewItem(){
+    setIsDialogOpen(true)
     if (itemPrice > 0){
       let product = {
+        "id": Date.now(),
         "name": itemName || "Item", 
         "price": itemPrice,
         "quantity": itemQuantity,
-        "total": itemPrice * itemQuantity
+        "total": (itemPrice * itemQuantity).toFixed(2)
       } 
-      console.log(product)
       setShoppingList(prevList => [... prevList, product])
       let totalPrice = totalSpent + product.price * product.quantity
       setTotalSpent(totalPrice) 
-      console.log(totalPrice)
       if (totalPrice < budget || totalPrice > budget){
         let percent = totalPrice/budget * 100 
-        console.log(percent)
         setPercentage(percent)
       }
       else if (totalPrice == budget){
         setPercentage(100)
       } 
+    } 
+
+    setIsDialogOpen(false)
+    setItemName('')
+    setItemPrice(0) 
+    setItemQuantity(1)
+  }
+
+  function openDialog(item){
+    setIsDialogOpen(true) 
+    setItemName(item.name)
+    setItemPrice(item.price) 
+    setItemQuantity(item.quantity)
+  }
+
+  function editItem(itemId){
+    if (localStorage.getItem(itemId)) {
+      localStorage.removeItem(itemId)
     }
+  }
+
+  function handleItemClick(item){
+    setSelectedItem(item) 
+    setIsDialogOpen(true)
   }
 
   return (
@@ -64,7 +88,7 @@ export default function Home() {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet" />
         <title>Spendmeter - Grocery Spending Tracker</title>
       </Head>
-      <div className="w-full bg-bgsoft h-full fixed flex flex-col justify-center items-center">
+      <div className="w-full bg-bgsoft h-full fixed flex flex-col px-3 justify-center items-center">
         <div className="flex flex-col items-center justify-center">
           <GiWallet size={42} className="text-textdark mb-4" />
           <h2 className="text-center text-xl font-Inter text-textdark">Spendmeter</h2>
@@ -86,9 +110,9 @@ export default function Home() {
                     <FaCoins size={36} className="text-yellow-400 ml-2" />
                   </p>
                 </div>
-                <Dialog>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <button className="bg-accent hover:bg-blue-700 rounded-2xl flex flex-row text-3xl text-white font-Nunito font-bold px-8 py-4">
+                    <button className="bg-accent hover:bg-blue-700 rounded-2xl flex flex-row text-xl md:text-3xl text-white font-Nunito font-bold px-4 md:px-8 py-4">
                       <FaCartPlus className="text-white" />
                       <span className="ml-2">Add Item</span>
                     </button>
@@ -117,7 +141,7 @@ export default function Home() {
                         <label htmlFor="itemPrice" className="mb-1 text-xl font-Nunito">
                           Item quantity
                         </label>
-                        <input id="itemQuantity" value={itemQuantity} onChange={e => setItemQuantity(e.target.value)} type="number" min={0} className="outline-none text-3xl font-Nunito border px-6 py-4 rounded-2xl" />
+                        <input id="itemQuantity" value={itemQuantity} onChange={e => setItemQuantity(e.target.value)} type="number" min={1} className="outline-none text-3xl font-Nunito border px-6 py-4 rounded-2xl" />
                       </div>
                     </div>
                     <DialogFooter>
@@ -127,7 +151,7 @@ export default function Home() {
                 </Dialog>
               </div>
               <p className={`mb-3 ${shoppingList.length > 0 ? "" : "hidden"} flex flex-row items-center justify-between text-textlight text-xl font-Nunito`}>
-                <span>About to spend: ${totalSpent}</span>
+                <span>About to spend: ${totalSpent.toFixed(2)}</span>
                 {
                     percentage <= 80 
                     && 
@@ -146,7 +170,7 @@ export default function Home() {
                     percentage > 100
                     && 
                     <span className="text-center text-danger font-Nunito font-bold text-lg">
-                      Over budget 
+                      Over budget (+ ${totalSpent - budget})
                     </span>
                   }
               </p>
@@ -160,15 +184,15 @@ export default function Home() {
                   shoppingList &&
                   Object.entries(shoppingList).map(([key, value]) => (
                     <div className="w-full flex flex-row items-center mb-4">
-                      <div key={key} className="mr-2 flex flex-row items-center justify-between w-full px-4 py-3 bg-white border rounded-2xl shadow-sm">
-                        <span className="text-3xl font-Inter text-textdark">{value.quantity} x {value.name}</span>
-                        <span className="text-3xl font-Inter text-textdark">Total cost: ${value.total}</span>
+                      <div tabIndex={0} key={key} onClick={() => openDialog(value)} className="cursor-pointer hover:bg-slate-50 mr-2 flex flex-row items-center justify-between w-full px-4 py-3 bg-white border rounded-2xl shadow-sm">
+                        <span className="text-lg md:text-2xl font-Inter text-textdark">{value.quantity} x {value.name}</span>
+                        <span className="text-lg md:text-2xl font-Inter text-textdark">Total: ${value.total}</span>
                       </div>
-                      <button type="button" className="bg-green-500 hover:bg-green-600 mr-2 text-white text-3xl px-6 py-3 font-Nunito rounded-2xl">
+                      <button type="button" className="hidden bg-green-500 hover:bg-green-600 mr-2 text-white text-xl md:text-3xl px-6 py-3 font-Nunito rounded-2xl">
                         Edit
                       </button>
-                      <button type="button" className="flex flex-row items-center bg-red-500 hover:bg-red-600 text-white text-3xl px-6 py-3 font-Nunito rounded-2xl">
-                        <MdRemoveShoppingCart size={36} className="text-white" />
+                      <button type="button" className="flex flex-row items-center bg-red-500 hover:bg-red-600 text-white text-xl md:text-3xl px-6 py-3 font-Nunito rounded-2xl">
+                        <MdRemoveShoppingCart size={28} className="text-white" />
                       </button>
                     </div>
                   ))
@@ -179,7 +203,7 @@ export default function Home() {
           <div className={`${budgetBtnClicked ? "hidden" : ""} flex flex-row items-center justify-center`}>
             <FaDollarSign className="text-gray-300" size={32} />
             <input type="number" value={budget} onChange={e => setBudget(e.target.value)} min={0} className="mr-3 w-[140px] relative text-center py-4 rounded-2xl outline-none font-Inter text-textdark text-4xl border" />
-            <button type="button" onClick={() => setBudgetBtnClicked(true)} className=" transition duration-100 focus:scale-85 bg-accent rounded-2xl text-4xl text-white px-8 py-4 font-Nunito font-bold">Set A Budget</button>
+            <button type="button" onClick={() => setBudgetBtnClicked(true)} className=" transition duration-100 focus:scale-85 bg-accent rounded-2xl text-2xl md:text-4xl text-white px-8 py-5 md:py-4 font-Nunito font-bold">Set A Budget</button>
           </div>
         </div>
       </div>
